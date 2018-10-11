@@ -14,6 +14,7 @@ public:
     size_t effected_size;
     std::vector<float> buffer;
     size_t buff_idx;
+    size_t filter_mid_idx;
     //
     float median_value;
 
@@ -23,6 +24,7 @@ public:
         buffer.resize(window_size, 0.0);
         buffer_sort.resize(window_size, 0.0);
         buff_idx = 0;
+        filter_mid_idx = size_t(window_size/2);
         median_value = 0.0;
     }
 
@@ -39,17 +41,24 @@ public:
         // using default comparison (operator <):
         std::sort(buffer_sort.begin(), buffer_sort.end());
         //
+        if (effected_size == 0){
+            // return "+inf"
+            // return std::numeric_limits<float>::infinity();
+            // return "nan"
+            return std::numeric_limits<float>::quiet_NaN();
+        }
+        //
         if (effected_size % 2 == 1){
             // odd
-            size_t half_buff_size = size_t(effected_size/2);
-            // e.g. window_size=5 --> half_buff_size=2
-            median_value = buffer_sort[half_buff_size];
+            size_t half_idx = size_t(effected_size/2) + (window_size-effected_size);
+            // e.g. window_size=5 --> half_idx=2
+            median_value = buffer_sort[half_idx ];
         }else{
             // even
-            size_t half_buff_size_2 = size_t(effected_size/2);
-            size_t half_buff_size_1 = half_buff_size_2 - 1;
-            // e.g. window_size=6 --> half_buff_size=3
-            median_value = (buffer_sort[half_buff_size_1] + buffer_sort[half_buff_size_2])/2.0;
+            size_t half_idx_2 = size_t(effected_size/2) + (window_size-effected_size);
+            size_t half_idx_1 = half_idx_2 - 1;
+            // e.g. window_size=6 --> half_idx=3
+            median_value = (buffer_sort[half_idx_1] + buffer_sort[half_idx_2])/2.0;
         }
         return median_value;
     }
@@ -57,6 +66,8 @@ public:
     float filter(float new_value){
 
         increase_buff_idx();
+        increase_filter_mid_idx();
+        //
         float old_value = buffer[buff_idx];
         //
         if (isnan(new_value)){
@@ -66,12 +77,13 @@ public:
             }else{
                 effected_size--;
             }
-            // Repalce by positive infinity
-            new_value = std::numeric_limits<float>::infinity();
+            // Repalce by negative infinity ("-inf"),
+            // which will not present in normal data.
+            new_value = -1*std::numeric_limits<float>::infinity();
         }
         //
-        if (isinf(old_value)){
-            //
+        if (isinf(old_value) && old_value < 0.0){
+            // "-inf", originally "nan"
             effected_size++;
             if (effected_size > window_size){
                 effected_size = window_size;
@@ -79,6 +91,7 @@ public:
         }
         //
         buffer[buff_idx] = new_value;
+        // Search for the old value in buffer_sort
         for (size_t i=0; i < window_size; ++i){
             if (old_value <= buffer_sort[i]){
                 buffer_sort[i] = new_value;
@@ -86,7 +99,13 @@ public:
             }
         }
         //
-        return calculate_median();
+        calculate_median();
+        //
+        if (isinf(buffer[filter_mid_idx]) && buffer[filter_mid_idx] < 0.0){
+            return std::numeric_limits<float>::quiet_NaN();
+        }else{
+            return median_value;
+        }
 
     }
 
@@ -112,6 +131,14 @@ private:
             buff_idx = 0;
         }
         return buff_idx;
+    }
+    size_t increase_filter_mid_idx(void){
+        if (filter_mid_idx < (window_size-1)){
+            filter_mid_idx++;
+        }else{
+            filter_mid_idx = 0;
+        }
+        return filter_mid_idx;
     }
 
 };
