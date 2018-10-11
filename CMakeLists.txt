@@ -151,6 +151,11 @@ add_executable(sor src/sor.cpp)
 target_link_libraries(sor ${catkin_LIBRARIES})
 add_dependencies(sor src/sor.cpp)
 
+
+add_executable(median_filter_laser src/median_filter_laser.cpp)
+target_link_libraries(median_filter_laser ${catkin_LIBRARIES})
+add_dependencies(median_filter_laser src/median_filter_laser.cpp)
+
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
