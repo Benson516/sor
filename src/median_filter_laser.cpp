@@ -5,6 +5,8 @@
 #include <algorithm>    // std::sort
 #include <math.h>       /* isnan, isinf */
 
+// test
+#include <iostream>     // std::cout
 
 
 class MEDIAN_FILTER{
@@ -23,8 +25,10 @@ public:
         effected_size = window_size;
         buffer.resize(window_size, 0.0);
         buffer_sort.resize(window_size, 0.0);
-        buff_idx = 0;
+        //
+        buff_idx = window_size-1;
         filter_mid_idx = size_t(window_size/2);
+        //
         median_value = 0.0;
     }
 
@@ -32,8 +36,11 @@ public:
         effected_size = window_size;
         buffer.assign(window_size, value);
         buffer_sort.assign(window_size, value);
+        //
+        buff_idx = window_size-1;
+        filter_mid_idx = size_t(window_size/2);
+        //
         median_value = value;
-        buff_idx = 0;
     }
 
     // Core function
@@ -58,7 +65,9 @@ public:
             size_t half_idx_2 = size_t(effected_size/2) + (window_size-effected_size);
             size_t half_idx_1 = half_idx_2 - 1;
             // e.g. window_size=6 --> half_idx=3
-            median_value = (buffer_sort[half_idx_1] + buffer_sort[half_idx_2])/2.0;
+            // median_value = (buffer_sort[half_idx_1] + buffer_sort[half_idx_2])/2.0;
+            median_value = buffer_sort[half_idx_1];
+            // median_value = buffer_sort[half_idx_2];
         }
         return median_value;
     }
@@ -146,7 +155,7 @@ private:
 //
 ros::Publisher filtered_scan_pub;
 //
-size_t window_size = 20; //5;
+size_t window_size = 5; //5;
 MEDIAN_FILTER median_filter(window_size);
 
 //
@@ -168,9 +177,27 @@ void laserScanCallback(const sensor_msgs::LaserScanConstPtr& message)
     }
 
     size_t j = median_filter.get_idx_ahead(0, -1*int(median_filter.window_size/2), message->ranges.size());
+    //
     for (size_t i=0; i < message->ranges.size(); ++i){
-        //
-        filtered_scan.ranges[j] = median_filter.filter(message->ranges[i]);
+        // Assign the original value to the filter and do filtering
+        median_filter.filter(message->ranges[i]);
+        // Is it was originally nan or +inf, sinply skip them and don't filter
+        if ( isnan(filtered_scan.ranges[j]) ){
+            // std::cout << "nan\n";
+            // Not assigned
+        }else if ( isinf(filtered_scan.ranges[j]) && filtered_scan.ranges[j] > 0 ){
+            // std::cout << "+inf\n";
+            // Not assigned
+        }else{
+            if (median_filter.median_value >= filtered_scan.ranges[j]){
+                // Only assigned the filtered value if this value is greater that the original one.
+                // This is for preventing the route closure problem
+                filtered_scan.ranges[j] = median_filter.median_value;
+            }else{
+                // Not assigned
+            }
+
+        }
         //
         j++;
         if(j >= filtered_scan.ranges.size()){
